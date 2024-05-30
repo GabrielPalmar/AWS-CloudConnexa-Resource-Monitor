@@ -20,6 +20,7 @@ for pkg in mtr bc python3 python3-pip; do
 done
 
 # Fixed variables
+$count=25
 latency_flag=0
 loss_flag=0
 latency_threshold=50
@@ -27,16 +28,19 @@ loss_threshold=5
 ip=192.168.144.47
 hostname=$(uname -n)
 mtr_id=$(date '+%Y%m%d%H%M%S')
-directory='/home/ubuntu'
-csv_file="$directory/Latency-Loss-Connexa-Report.csv"
+directory='/home/ubuntu/Connexa-Logs'
+csv_file="$directory/LATENCY-LOSS-CONNEXA-REPORT.csv"
+
+if [[ ! -d "$directory" ]]; then
+    mkdir "$directory"
+fi
 
 if [[ -n "$directory" && ! -d "$directory" ]]; then
     echo "Error: Directory '$directory' does not exist."
-    exit 1
 fi
 
-mtr_report=$(mtr -r -n -c 5 -o AL $ip)
-line_count=$(echo "$mtr_report" | wc -l)
+mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
+line_count=$(echo "$mtr_report_resource" | wc -l)
 
 if [[ $line_count -le 4 ]]; then
     last_line=$line_count
@@ -45,7 +49,7 @@ else
 fi
 
 for i in $(seq 3 $last_line); do 
-    hop=$(echo "$mtr_report" | sed -n "$i p")
+    hop=$(echo "$mtr_report_resource" | sed -n "$i p")
     hop_latency=$(echo "$hop" | awk '{print $3}')
     hop_loss=$(echo "$hop" | awk '{print $NF}' | tr -d '%')
     if [[ -n "$hop_latency" && $(echo "$hop_latency > $latency_threshold" | bc -l) -eq 1 ]]; then
@@ -59,17 +63,26 @@ for i in $(seq 3 $last_line); do
     fi
 done
 
-csv_data="$hostname,$ip,$latency_flag,$hop_latency,$latency_threshold,$loss_flag,$hop_loss,$loss_threshold,$mtr_id"
+path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
+gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
 
 # Compare the last hop latency and loss with the thresholds
 if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
-    echo "$mtr_report" > "$directory/MTR-$mtr_id.txt"
+    echo "$mtr_report_resource" > "$directory/MTR-RESOURCE-$mtr_id.txt"
+    mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
+    echo "$mtr_report_gateway" > "$directory/MTR-GATEWAY-$mtr_id.txt"
+else
+    mtr_id=0
 fi
+
+latency=$(ping -q -c $count -n4 $ip | grep 'rtt' | awk -F '/' '{print $5}')
+
+csv_data="$hostname,$ip,$gateway_ip,$latency_flag,$latency,$latency_threshold,$loss_flag,$hop_loss,$loss_threshold,$mtr_id"
 
 if [[ -f "$csv_file" ]]; then
     echo "$csv_data" >> "$csv_file"
 else
-    echo "HOSTNAME,RESOURCE IP,LATENCY FLAG,HOP LATENCY (ms),LATENCY THRESHOLD (ms),LOSS FLAG,HOP LOSS (%),LOSS THRESHOLD (%),MTR-ID (YYYYMMDDHHMMSS)" > "$csv_file"
+    echo "HOSTNAME,RESOURCE IP,GATEWAY IP,LATENCY FLAG,HOP LATENCY (ms),LATENCY THRESHOLD (ms),LOSS FLAG,HOP LOSS (%),LOSS THRESHOLD (%),MTR-ID (YYYYMMDDHHMMSS)" > "$csv_file"
     echo "$csv_data" >> "$csv_file"
 fi
 

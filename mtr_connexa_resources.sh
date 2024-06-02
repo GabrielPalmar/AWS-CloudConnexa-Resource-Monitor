@@ -20,7 +20,7 @@ for pkg in mtr bc python3 python3-pip; do
 done
 
 # Fixed variables
-$count=25
+count=25
 latency_flag=0
 loss_flag=0
 latency_threshold=50
@@ -31,6 +31,7 @@ mtr_id=$(date '+%Y%m%d%H%M%S')
 directory='/home/ubuntu/Connexa-Logs'
 csv_file="$directory/LATENCY-LOSS-CONNEXA-REPORT.csv"
 
+# Check target directory
 if [[ ! -d "$directory" ]]; then
     mkdir "$directory"
 fi
@@ -39,6 +40,7 @@ if [[ -n "$directory" && ! -d "$directory" ]]; then
     echo "Error: Directory '$directory' does not exist."
 fi
 
+# MTR reports
 mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
 line_count=$(echo "$mtr_report_resource" | wc -l)
 
@@ -48,6 +50,7 @@ else
     last_line=5
 fi
 
+# Check first three hops for latency/loss
 for i in $(seq 3 $last_line); do 
     hop=$(echo "$mtr_report_resource" | sed -n "$i p")
     hop_latency=$(echo "$hop" | awk '{print $3}')
@@ -63,10 +66,10 @@ for i in $(seq 3 $last_line); do
     fi
 done
 
+# Get current CloudConnexa Gateway
 path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
 gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
 
-# Compare the last hop latency and loss with the thresholds
 if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
     echo "$mtr_report_resource" > "$directory/MTR-RESOURCE-$mtr_id.txt"
     mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)

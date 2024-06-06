@@ -12,15 +12,6 @@ fi
 
 trap 'rm -f "${LOCKFILE}"; exit' INT TERM EXIT
 
-# Check if 'mtr' and 'bc' are installed
-if ! command -v mtr &> /dev/null; then
-    sudo apt install mtr -y &> /dev/null
-fi
-
-if ! command -v bc &> /dev/null; then
-    sudo apt install bc -y &> /dev/null
-fi
-
 # Assign command-line arguments to variables
 LATENCY_THRESHOLD=${1}
 LOSS_THRESHOLD=${2}

@@ -758,6 +758,10 @@ Conditions:
     Fn::Equals:
       - Ref: ElasticIP
       - "true"
+  AssignPublicIP:
+    Fn::Equals:
+      - Ref: PublicIP
+      - "true"
 Resources:
   CloudConnexaMonitorLogs:
     Type: AWS::Logs::LogGroup
@@ -827,7 +831,7 @@ Resources:
           Value:
             Ref: InstanceName
       NetworkInterfaces:
-        - AssociatePublicIpAddress: !Ref PublicIP
+        - AssociatePublicIpAddress: !If [AssignPublicIP, true, !Ref "AWS::NoValue"]
           DeviceIndex: "0"
           GroupSet:
             - Ref: InstanceSecurityGroup
@@ -950,6 +954,15 @@ Resources:
           path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
           gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
 
+          latency_test=$(ping -q -c "$count" -n4 "$ip")
+
+          if echo "$latency_test" | grep -q '100% packet loss'; then
+            latency=999
+            loss_flag=1
+          else
+            latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+          fi
+
           if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
               echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
               mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
@@ -957,8 +970,6 @@ Resources:
           else
               mtr_id=0
           fi
-
-          latency=$(ping -q -c $count -n4 $ip | grep 'rtt' | awk -F '/' '{print $5}')
 
           json_data="{\"HOSTNAME\": \"$hostname\",\"RESOURCE_IP\": $json_rips,\"GATEWAY_IP\": \"$gateway_ip\",\"LATENCY_FLAG\": \"$latency_flag\",\"LATENCY_(ms)\": \"$latency\",\"LATENCY_THRESHOLD_(ms)\": \"$latency_threshold\",\"LOSS_FLAG\": \"$loss_flag\",\"HOP_LOSS_(%)\": \"$hop_loss\",\"LOSS_THRESHOLD_(%)\": \"$loss_threshold\",\"MTR-ID_(YYYYMMDDHHMMSS)\": \"$mtr_id\"}"
 

@@ -831,7 +831,7 @@ Resources:
           Value:
             Ref: InstanceName
       NetworkInterfaces:
-        - AssociatePublicIpAddress: !If [AssignPublicIP, true, !Ref "AWS::NoValue"]
+        - AssociatePublicIpAddress: !Ref PublicIP
           DeviceIndex: "0"
           GroupSet:
             - Ref: InstanceSecurityGroup
@@ -1016,7 +1016,4 @@ Outputs:
         - AvailabilityZone
   PublicIP:
     Description: Public IP address of the newly created EC2 instance
-    Value:
-      Fn::GetAtt:
-        - EC2Instance
-        - PublicIp
+    Value: !If [AssignPublicIP, !GetAtt EC2Instance.PublicIp, "No Public IP"]

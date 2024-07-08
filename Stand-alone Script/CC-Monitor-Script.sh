@@ -1,0 +1,173 @@
+#!/bin/bash
+
+# Check for dependencies
+for pkg in mtr bc openvpn3 python3 python3-pip; do
+    if ! command -v $pkg &> /dev/null; then
+        sudo apt install $pkg -y &> /dev/null
+    fi
+done
+
+# Set CloudWatch Agent
+sudo wget -q https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+sudo dpkg -i -E ./amazon-cloudwatch-agent.deb &> /dev/null
+echo '{"agent":{"run_as_user":"root"},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/home/ubuntu/Connexa-Logs/**","log_group_class":"STANDARD","log_group_name":"CloudConnexa-Monitor-Logs","log_stream_name":"{instance_id}","retention_in_days":-1}]}}}}' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json &> /dev/null
+
+script_dir='/home/ubuntu/connexa-script.sh'
+
+# Install the OpenVPN repository key used by the OpenVPN packages
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://packages.openvpn.net/packages-repo.gpg | sudo tee /etc/apt/keyrings/openvpn.asc
+
+# Add the OpenVPN repository
+echo "deb [signed-by=/etc/apt/keyrings/openvpn.asc] https://packages.openvpn.net/openvpn3/debian $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/openvpn-packages.list &> /dev/null
+sudo apt update &> /dev/null
+
+# Install OpenVPN Connector setup tool
+sudo apt install python3-openvpn-connector-setup -y &> /dev/null
+
+# Run openvpn-connector-setup to import ovpn profile and connect to VPN.
+sudo openvpn-connector-setup 
+
+prompt_and_read() {
+    local prompt_message=$1
+    local variable_name=$2
+
+    while true; do
+        echo "$prompt_message"
+        read input
+        if [[ $input =~ ^[0-9]{1,3}$ ]]; then
+            eval $variable_name=$input
+            break
+        else
+            echo 'Please enter a valid number (3 digits max):'
+        fi
+    done
+}
+
+prompt_and_read 'Interval (in minutes) where the monitoring script repeats:' interval
+prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain?:' TestCount
+prompt_and_read 'Threshold for the Latency value to monitor:' LatencyThreshold
+prompt_and_read 'Threshold for the Loss value to monitor:' LossThreshold
+
+echo 'Resource IPs or Domains to monitor, comma separated (no space in between):'
+while true; do
+    read ResourceIP
+    if [[ $LatencyThreshold =~ ^((([0-9]{1,3}\.){3}[0-9]{1,3}|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(,(([0-9]{1,3}\.){3}[0-9]{1,3}|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}))*)$ ]]; then
+        break
+    else
+        echo 'Please enter a valid domains or IPs, comma separated (no space in between)'
+    fi
+done
+
+# Monitor Script
+cat << 'EOF' > $script_dir
+#!/bin/bash
+# Check for dependencies
+for pkg in mtr bc python3 python3-pip jq; do
+    if ! command -v $pkg &> /dev/null; then
+        sudo apt install $pkg -y &> /dev/null
+    fi
+done
+
+# Lockfile process
+lockfile="/tmp/mtr_script_lock"
+
+if [ -e "$lockfile" ]; then
+    echo "Script is already running."
+    exit 1
+else
+    touch "$lockfile"
+fi
+
+trap 'rm -f "$lockfile"; exit' INT TERM EXIT
+
+# Fixed variables
+count="${TestCount}"
+latency_flag=0
+loss_flag=0
+latency_threshold="${LatencyThreshold}"
+loss_threshold="${LossThreshold}"
+rips="${ResourceIP}"
+ips=($(echo "$rips" | tr ',' '\n'))
+hostname=$(uname -n)
+mtr_id=$(date '+%Y%m%d%H%M%S')
+directory='/home/ubuntu/Connexa-Logs'
+json_file="$directory/LATENCY-LOSS-CONNEXA-REPORT.json"
+
+# Check target directory
+if [[ ! -d "$directory" ]]; then
+    mkdir "$directory"
+fi
+if [[ -n "$directory" && ! -d "$directory" ]]; then
+    echo "Error: Directory '$directory' does not exist."
+fi
+
+for ip in "${!ips[@]}"; do
+    # MTR reports
+    mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
+    line_count=$(echo "$mtr_report_resource" | wc -l)
+
+    if [[ $line_count -le 4 ]]; then
+        last_line=$line_count
+    else
+        last_line=5
+    fi
+
+    # Check first three hops for latency/loss
+    for i in $(seq 3 $last_line); do 
+        hop=$(echo "$mtr_report_resource" | sed -n "$i p")
+        hop_latency=$(echo "$hop" | awk '{print $3}')
+        hop_loss=$(echo "$hop" | awk '{print $NF}' | tr -d '%')
+        if [[ -n "$hop_latency" && $(echo "$hop_latency > $latency_threshold" | bc -l) -eq 1 ]]; then
+            latency_flag=1
+        fi
+        if [[ -n "$hop_loss" && $(echo "$hop_loss > $loss_threshold" | bc -l) -eq 1 ]]; then
+            loss_flag=1
+        fi
+        if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
+            break
+        fi
+    done
+    resource_ips+=($ip)
+    if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
+        break
+    fi
+done
+
+json_rips=$(printf '%s\n' "${!resource_ips[@]}" | jq -R . | jq -cs .)    
+
+# Get current CloudConnexa Gateway
+path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
+gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
+
+latency_test=$(ping -q -c "$count" -n4 "$ip")
+
+if echo "$latency_test" | grep -q '100% packet loss'; then
+latency=999
+loss_flag=1
+else
+latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+fi
+
+if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
+    echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
+    mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
+    echo "$mtr_report_gateway" | sed "s/HOST.*/GATEWAY MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-GATEWAY-$mtr_id.txt"
+else
+    mtr_id=0
+fi
+
+json_data="{\"HOSTNAME\": \"$hostname\",\"RESOURCE_IP\": $json_rips,\"GATEWAY_IP\": \"$gateway_ip\",\"LATENCY_FLAG\": \"$latency_flag\",\"LATENCY_(ms)\": \"$latency\",\"LATENCY_THRESHOLD_(ms)\": \"$latency_threshold\",\"LOSS_FLAG\": \"$loss_flag\",\"HOP_LOSS_(%)\": \"$hop_loss\",\"LOSS_THRESHOLD_(%)\": \"$loss_threshold\",\"MTR-ID_(YYYYMMDDHHMMSS)\": \"$mtr_id\"}"
+
+if [[ -f "$json_file" ]]; then
+    echo "$json_data" >> "$json_file"
+else
+    echo "$json_data" > "$json_file"
+fi
+
+rm -f "$lockfile"
+EOF
+
+chmod +x /home/ubuntu/connexa-script.sh
+(crontab -l 2>/dev/null; echo "*/$interval * * * * $script_dir") | crontab -

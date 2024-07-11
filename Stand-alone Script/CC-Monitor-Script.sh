@@ -53,7 +53,7 @@ prompt_and_read 'Threshold for the Loss value to monitor:' LossThreshold
 echo 'Resource IPs or Domains to monitor, comma separated (no space in between):'
 while true; do
     read ResourceIP
-    if [[ $LatencyThreshold =~ ^((([0-9]{1,3}\.){3}[0-9]{1,3}|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})(,(([0-9]{1,3}\.){3}[0-9]{1,3}|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}))*)$ ]]; then
+    if [[ $ResourceIP =~ ^[a-zA-Z0-9,.]*$ ]]; then
         break
     else
         echo 'Please enter a valid domains or IPs, comma separated (no space in between)'

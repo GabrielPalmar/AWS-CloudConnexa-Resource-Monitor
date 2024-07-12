@@ -17,7 +17,7 @@ script_dir='/home/ubuntu/connexa-script.sh'
 
 # Install the OpenVPN repository key used by the OpenVPN packages
 sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://packages.openvpn.net/packages-repo.gpg | sudo tee /etc/apt/keyrings/openvpn.asc
+curl -fsSL https://packages.openvpn.net/packages-repo.gpg | sudo tee /etc/apt/keyrings/openvpn.asc &> /dev/null
 
 # Add the OpenVPN repository
 echo "deb [signed-by=/etc/apt/keyrings/openvpn.asc] https://packages.openvpn.net/openvpn3/debian $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/openvpn-packages.list &> /dev/null
@@ -45,11 +45,20 @@ prompt_and_read() {
     done
 }
 
-prompt_and_read 'Interval (in minutes) where the monitoring script repeats:' interval
-prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain?:' TestCount
-prompt_and_read 'Threshold for the Latency value to monitor:' LatencyThreshold
-prompt_and_read 'Threshold for the Loss value to monitor:' LossThreshold
+separator() {
+echo
+echo '••••••••••••••••••••••••••••••••••••••••••••••••••'
+}
 
+separator
+prompt_and_read 'Interval (in minutes) where the monitoring script repeats:' interval
+separator
+prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain?:' TestCount
+separator
+prompt_and_read 'Threshold for the Latency value to monitor:' LatencyThreshold
+separator
+prompt_and_read 'Threshold for the Loss value to monitor:' LossThreshold
+separator
 echo 'Resource IPs or Domains to monitor, comma separated (no space in between):'
 while true; do
     read ResourceIP
@@ -63,13 +72,6 @@ done
 # Monitor Script
 cat << 'EOF' > $script_dir
 #!/bin/bash
-# Check for dependencies
-for pkg in mtr bc python3 python3-pip jq; do
-    if ! command -v $pkg &> /dev/null; then
-        sudo apt install $pkg -y &> /dev/null
-    fi
-done
-
 # Lockfile process
 lockfile="/tmp/mtr_script_lock"
 
@@ -83,12 +85,12 @@ fi
 trap 'rm -f "$lockfile"; exit' INT TERM EXIT
 
 # Fixed variables
-count="${TestCount}"
+count="TestCountReplace"
 latency_flag=0
 loss_flag=0
-latency_threshold="${LatencyThreshold}"
-loss_threshold="${LossThreshold}"
-rips="${ResourceIP}"
+latency_threshold="LatencyThresholdReplace"
+loss_threshold="LossThresholdReplace"
+rips="ResourceIPReplace"
 ips=($(echo "$rips" | tr ',' '\n'))
 hostname=$(uname -n)
 mtr_id=$(date '+%Y%m%d%H%M%S')
@@ -103,7 +105,7 @@ if [[ -n "$directory" && ! -d "$directory" ]]; then
     echo "Error: Directory '$directory' does not exist."
 fi
 
-for ip in "${!ips[@]}"; do
+for ip in "${ips[@]}"; do
     # MTR reports
     mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
     line_count=$(echo "$mtr_report_resource" | wc -l)
@@ -135,7 +137,7 @@ for ip in "${!ips[@]}"; do
     fi
 done
 
-json_rips=$(printf '%s\n' "${!resource_ips[@]}" | jq -R . | jq -cs .)    
+json_rips=$(printf '%s\n' "${resource_ips[@]}" | jq -R . | jq -cs .)    
 
 # Get current CloudConnexa Gateway
 path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
@@ -168,6 +170,8 @@ fi
 
 rm -f "$lockfile"
 EOF
+
+sed -i "s/TestCountReplace/$TestCount/; s/LatencyThresholdReplace/$LatencyThreshold/; s/LossThresholdReplace/$LossThreshold/; s/ResourceIPReplace/$ResourceIP/" $script_dir
 
 chmod +x /home/ubuntu/connexa-script.sh
 (crontab -l 2>/dev/null; echo "*/$interval * * * * $script_dir") | crontab -

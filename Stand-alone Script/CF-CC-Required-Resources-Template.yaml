@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Creates CloudWatch Log Groups and Metrics.
+Resources:
+  CloudConnexaMonitorLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: "CloudConnexa-Monitor-Logs"
+  CloudConnexaMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CloudConnexaMonitorLogs
+      FilterPattern: '{ ($.LATENCY_FLAG = "1") || ($.LOSS_FLAG = "1") }'
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: "CloudConnexa"
+          MetricName: "HighLatencyOrLoss"
+          Unit: "Count"
+  RoleEC2CloudWatch:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "EC2-CloudWatch-Policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:DescribeLogStreams"
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:CloudConnexa-Monitor-Logs:*"

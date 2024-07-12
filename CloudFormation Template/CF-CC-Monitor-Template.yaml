@@ -875,13 +875,6 @@ Resources:
           # Monitor Script
           cat << 'EOF' > $script_dir
           #!/bin/bash
-          # Check for dependencies
-          for pkg in mtr bc python3 python3-pip jq; do
-              if ! command -v $pkg &> /dev/null; then
-                  sudo apt install $pkg -y &> /dev/null
-              fi
-          done
-
           # Lockfile process
           lockfile="/tmp/mtr_script_lock"
 

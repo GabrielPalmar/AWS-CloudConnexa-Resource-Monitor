@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check for dependencies
-for pkg in mtr bc openvpn3 python3 python3-pip; do
+for pkg in mtr bc python3 python3-pip; do
     if ! command -v $pkg &> /dev/null; then
         sudo apt install $pkg -y &> /dev/null
     fi
@@ -15,19 +15,24 @@ sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-c
 
 script_dir='/home/ubuntu/connexa-script.sh'
 
-# Install the OpenVPN repository key used by the OpenVPN packages
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSL https://packages.openvpn.net/packages-repo.gpg | sudo tee /etc/apt/keyrings/openvpn.asc &> /dev/null
+if sudo openvpn3 sessions-list | grep -A 2 'CloudConnexa' | grep -qo 'Client connected'; then
+    echo -e "\n••••••••••• Using existing session •••••••••••\n"
+else
+    # Install the OpenVPN repository key used by the OpenVPN packages
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://packages.openvpn.net/packages-repo.gpg | sudo tee /etc/apt/keyrings/openvpn.asc &> /dev/null
 
-# Add the OpenVPN repository
-echo "deb [signed-by=/etc/apt/keyrings/openvpn.asc] https://packages.openvpn.net/openvpn3/debian $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/openvpn-packages.list &> /dev/null
-sudo apt update &> /dev/null
+    # Add the OpenVPN repository
+    echo "deb [signed-by=/etc/apt/keyrings/openvpn.asc] https://packages.openvpn.net/openvpn3/debian $(lsb_release -c -s) main" | sudo tee /etc/apt/sources.list.d/openvpn-packages.list &> /dev/null
+    sudo apt update &> /dev/null
 
-# Install OpenVPN Connector setup tool
-sudo apt install python3-openvpn-connector-setup -y &> /dev/null
+    # Install OpenVPN Connector setup tool
+    sudo apt install python3-openvpn-connector-setup -y &> /dev/null
 
-# Run openvpn-connector-setup to import ovpn profile and connect to VPN.
-sudo openvpn-connector-setup 
+    # Run openvpn-connector-setup to import ovpn profile and connect to VPN.
+    echo -e "\n••••••••••• Place Host Connector Token •••••••••••"
+    sudo openvpn-connector-setup 
+fi
 
 prompt_and_read() {
     local prompt_message=$1
@@ -46,8 +51,7 @@ prompt_and_read() {
 }
 
 separator() {
-echo
-echo '••••••••••••••••••••••••••••••••••••••••••••••••••'
+echo -e "\n••••••••••••••••••••••••••••••••••••••••••••••••••"
 }
 
 separator
@@ -60,6 +64,7 @@ separator
 prompt_and_read 'Threshold for the Loss value to monitor:' LossThreshold
 separator
 echo 'Resource IPs or Domains to monitor, comma separated (no space in between):'
+
 while true; do
     read ResourceIP
     if [[ $ResourceIP =~ ^[a-zA-Z0-9,.]*$ ]]; then

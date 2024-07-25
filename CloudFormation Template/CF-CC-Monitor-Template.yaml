@@ -963,7 +963,7 @@ Resources:
               mtr_id=0
           fi
 
-          json_data="{\"HOSTNAME\": \"$hostname\",\"RESOURCE_IP\": $json_rips,\"GATEWAY_IP\": \"$gateway_ip\",\"LATENCY_FLAG\": \"$latency_flag\",\"LATENCY_(ms)\": \"$latency\",\"LATENCY_THRESHOLD_(ms)\": \"$latency_threshold\",\"LOSS_FLAG\": \"$loss_flag\",\"HOP_LOSS_(%)\": \"$hop_loss\",\"LOSS_THRESHOLD_(%)\": \"$loss_threshold\",\"MTR-ID_(YYYYMMDDHHMMSS)\": \"$mtr_id\"}"
+          json_data="{\"HOSTNAME\": \"$hostname\",\"RESOURCE(S)\": $json_rips,\"GATEWAY_IP\": \"$gateway_ip\",\"LATENCY_FLAG\": \"$latency_flag\",\"LATENCY_(ms)\": \"$latency\",\"LATENCY_THRESHOLD_(ms)\": \"$latency_threshold\",\"LOSS_FLAG\": \"$loss_flag\",\"HOP_LOSS_(%)\": \"$hop_loss\",\"LOSS_THRESHOLD_(%)\": \"$loss_threshold\",\"MTR-ID_(YYYYMMDDHHMMSS)\": \"$mtr_id\"}"
 
           if [[ -f "$json_file" ]]; then
               echo "$json_data" >> "$json_file"

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check for dependencies
-for pkg in mtr bc python3 python3-pip; do
+for pkg in mtr bc jq python3 python3-pip; do
     if ! command -v $pkg &> /dev/null; then
         sudo apt install $pkg -y &> /dev/null
     fi
@@ -15,9 +15,7 @@ sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-c
 
 script_dir='/home/ubuntu/connexa-script.sh'
 
-if sudo openvpn3 sessions-list | grep -A 2 'CloudConnexa' | grep -qo 'Client connected'; then
-    echo -e "\n••••••••••• Using existing session •••••••••••\n"
-else
+if ! command openvpn3 --help &> /dev/null; then
     # Install the OpenVPN repository key used by the OpenVPN packages
     sudo mkdir -p /etc/apt/keyrings
     curl -fsSL https://packages.openvpn.net/packages-repo.gpg | sudo tee /etc/apt/keyrings/openvpn.asc &> /dev/null
@@ -28,7 +26,11 @@ else
 
     # Install OpenVPN Connector setup tool
     sudo apt install python3-openvpn-connector-setup -y &> /dev/null
+fi
 
+if sudo openvpn3 sessions-list | grep -A 2 'CloudConnexa' | grep -qo 'Client connected'; then
+    echo -e "\n••••••••••• Using existing session •••••••••••\n"
+else
     # Run openvpn-connector-setup to import ovpn profile and connect to VPN.
     echo -e "\n••••••••••• Place Host Connector Token •••••••••••"
     sudo openvpn-connector-setup 
@@ -57,11 +59,11 @@ echo -e "\n•••••••••••••••••••••••
 separator
 prompt_and_read 'Interval (in minutes) where the monitoring script repeats:' interval
 separator
-prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain?:' TestCount
+prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain? (Recommended 25):' TestCount
 separator
-prompt_and_read 'Threshold for the Latency value to monitor:' LatencyThreshold
+prompt_and_read 'Threshold for the Latency value to monitor (Recommended 75):' LatencyThreshold
 separator
-prompt_and_read 'Threshold for the Loss value to monitor:' LossThreshold
+prompt_and_read 'Threshold for the Loss value to monitor (Recommended 5):' LossThreshold
 separator
 echo 'Resource IPs or Domains to monitor, comma separated (no space in between):'
 
@@ -122,7 +124,7 @@ for ip in "${ips[@]}"; do
     fi
 
     # Check first three hops for latency/loss
-    for i in $(seq 3 $last_line); do 
+    for i in $(seq 3 $last_line); do
         hop=$(echo "$mtr_report_resource" | sed -n "$i p")
         hop_latency=$(echo "$hop" | awk '{print $3}')
         hop_loss=$(echo "$hop" | awk '{print $NF}' | tr -d '%')
@@ -142,35 +144,40 @@ for ip in "${ips[@]}"; do
     fi
 done
 
-json_rips=$(printf '%s\n' "${resource_ips[@]}" | jq -R . | jq -cs .)    
+json_rips=$(printf '%s\n' "${resource_ips[@]}" | jq -R . | jq -cs .)
 
 # Get current CloudConnexa Gateway
-path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
+path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*')
 gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
 
-latency_test=$(ping -q -c "$count" -n4 "$ip")
-
-if echo "$latency_test" | grep -q '100% packet loss'; then
-latency=999
-loss_flag=1
+if [[ "$latency_flag" -eq 1 ]]; then
+    latency="$hop_latency"
 else
-latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+    latency_test=$(ping -q -c "$count" -n4 "$ip")
+    if echo "$latency_test" | grep -q '100% packet loss'; then
+        latency=999
+        loss_flag=1
+    else
+        latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+    fi
+fi
+
+if ! [[ "$latency_flag" -eq 1 ]] && ! [[ "$loss_flag" -eq 1 ]]; then
+    mtr_id=0
+fi
+
+json_data="{\"HOSTNAME\": \"$hostname\",\"RESOURCE(S)\": $json_rips,\"GATEWAY_IP\": \"$gateway_ip\",\"LATENCY_FLAG\": \"$latency_flag\",\"LATENCY_(ms)\": \"$latency\",\"LATENCY_THRESHOLD_(ms)\": \"$latency_threshold\",\"LOSS_FLAG\": \"$loss_flag\",\"HOP_LOSS_(%)\": \"$hop_loss\",\"LOSS_THRESHOLD_(%)\": \"$loss_threshold\",\"MTR-ID_(YYYYMMDDHHMMSS)\": \"$mtr_id\"}"
+
+if [[ -f "$json_file" ]]; then
+    echo "$json_data" >> "$json_file"
+else
+    echo "$json_data" > "$json_file"
 fi
 
 if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
     echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
     mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
     echo "$mtr_report_gateway" | sed "s/HOST.*/GATEWAY MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-GATEWAY-$mtr_id.txt"
-else
-    mtr_id=0
-fi
-
-json_data="{\"HOSTNAME\": \"$hostname\",\"RESOURCE_IP\": $json_rips,\"GATEWAY_IP\": \"$gateway_ip\",\"LATENCY_FLAG\": \"$latency_flag\",\"LATENCY_(ms)\": \"$latency\",\"LATENCY_THRESHOLD_(ms)\": \"$latency_threshold\",\"LOSS_FLAG\": \"$loss_flag\",\"HOP_LOSS_(%)\": \"$hop_loss\",\"LOSS_THRESHOLD_(%)\": \"$loss_threshold\",\"MTR-ID_(YYYYMMDDHHMMSS)\": \"$mtr_id\"}"
-
-if [[ -f "$json_file" ]]; then
-    echo "$json_data" >> "$json_file"
-else
-    echo "$json_data" > "$json_file"
 fi
 
 rm -f "$lockfile"

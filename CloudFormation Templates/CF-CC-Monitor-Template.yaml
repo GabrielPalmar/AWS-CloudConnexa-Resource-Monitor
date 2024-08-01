@@ -841,7 +841,7 @@ Resources:
           #!/bin/bash
 
           # Check for dependencies
-          for pkg in mtr bc python3 python3-pip; do
+          for pkg in mtr bc jq python3 python3-pip; do
               if ! command -v $pkg &> /dev/null; then
                   sudo apt install $pkg -y &> /dev/null
               fi
@@ -908,7 +908,7 @@ Resources:
               echo "Error: Directory '$directory' does not exist."
           fi
 
-          for ip in "${!ips[@]}"; do
+          for ip in "${ips[@]}"; do
               # MTR reports
               mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
               line_count=$(echo "$mtr_report_resource" | wc -l)
@@ -920,7 +920,7 @@ Resources:
               fi
 
               # Check first three hops for latency/loss
-              for i in $(seq 3 $last_line); do 
+              for i in $(seq 3 $last_line); do
                   hop=$(echo "$mtr_report_resource" | sed -n "$i p")
                   hop_latency=$(echo "$hop" | awk '{print $3}')
                   hop_loss=$(echo "$hop" | awk '{print $NF}' | tr -d '%')
@@ -933,6 +933,18 @@ Resources:
                   if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
                       break
                   fi
+                  if [[ "$latency_flag" -eq 1 ]]; then
+                      latency="$hop_latency"
+                  else
+                      latency_test=$(ping -q -c "$count" -n4 "$ip")
+                      if echo "$latency_test" | grep -q '100% packet loss'; then
+                          latency=0
+                          hop_loss=100
+                          loss_flag=1
+                      else
+                          latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+                      fi
+                  fi
               done
               resource_ips+=($ip)
               if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
@@ -940,26 +952,13 @@ Resources:
               fi
           done
 
-          json_rips=$(printf '%s\n' "${!resource_ips[@]}" | jq -R . | jq -cs .)    
+          json_rips=$(printf '%s\n' "${resource_ips[@]}" | jq -R . | jq -cs .)
 
           # Get current CloudConnexa Gateway
-          path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*') 
+          path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*')
           gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
 
-          latency_test=$(ping -q -c "$count" -n4 "$ip")
-
-          if echo "$latency_test" | grep -q '100% packet loss'; then
-            latency=999
-            loss_flag=1
-          else
-            latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
-          fi
-
-          if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
-              echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
-              mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
-              echo "$mtr_report_gateway" | sed "s/HOST.*/GATEWAY MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-GATEWAY-$mtr_id.txt"
-          else
+          if ! [[ "$latency_flag" -eq 1 ]] && ! [[ "$loss_flag" -eq 1 ]]; then
               mtr_id=0
           fi
 
@@ -969,6 +968,14 @@ Resources:
               echo "$json_data" >> "$json_file"
           else
               echo "$json_data" > "$json_file"
+          fi
+
+          if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
+              if [[ $hop_loss -ne 100 ]]; then
+                  echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
+              fi
+              mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
+              echo "$mtr_report_gateway" | sed "s/HOST.*/GATEWAY MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-GATEWAY-$mtr_id.txt"
           fi
 
           rm -f "$lockfile"

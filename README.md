@@ -63,7 +63,7 @@ The stand-alone script is supported for Ubuntu 22.04. While it might work on oth
 To launch the script, use the following on the EC2's terminal:
 
 ```
-curl -O raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh
+wget -q raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh
 chmod +x CC-Monitor-Script.sh
 ./CC-Monitor-Script.sh
 ```

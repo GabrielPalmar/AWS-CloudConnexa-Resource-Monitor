@@ -4,6 +4,7 @@
 * [General info](#introduction)
 * [Technologies](#technologies)
 * [Script Logic](#script-logic)
+* [Pre-requisites](#pre-requisites)
 * [Setup](#setup)
 * [Usage](#usage)
 * [CloudFormation Templates](#cloudformation-templates)
@@ -56,6 +57,8 @@ Please keep in mind that when checking multiple resources with the script, if th
 Note: Each MTR report has a unique MTR ID to filter and easily access.
 
 ![](https://github.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/blob/main/Diagram.png?raw=true)
+
+## Pre-requisites
 
 ## Setup
 The stand-alone script is supported for Ubuntu 22.04. While it might work on other Ubuntu versions, most dependencies installations are optimized for this specific version.

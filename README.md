@@ -4,6 +4,7 @@
 * [General info](#introduction)
 * [Technologies](#technologies)
 * [Script Logic](#script-logic)
+* [Pre-requisites](#pre-requisites)
 * [Setup](#setup)
 * [Usage](#usage)
 * [CloudFormation Templates](#cloudformation-templates)
@@ -49,19 +50,25 @@ Based on the packet loss or occurrences, logs are created under the folder path 
 ```
 Please keep in mind that when checking multiple resources with the script, if there is no packet loss or latency, the "**LATENCY_(ms)**" and "**HOP_LOSS_(%)**" values will refer to the last domain or IP address entered in the script for checking.
 
-2. **MTR-RESOURCE-{mtr_id}.txt**: A created MTR report containing packet loss or latency values over the hops against. This report is skipped in case there is a 100% packet loss over the connection.
+2. **MTR-RESOURCE-{mtr_id}.txt**: A created MTR report containing packet loss or latency values over the hops against. This report is skipped in case of a 100% packet loss over the connection.
 
 3. **MTR-GATEWAY-$mtr_id.txt**: A created MTR report containing packet loss or latency values over the hops against the CloudConnexa Gateway IP used by the OpenVPN3 Client. This report is important for the CloudConnexa support team as it allows us to check if there is an issue over the CloudConnexa region DC.
 
-Note: Each MTR report has its unique MTR ID to filter and have easy access.
+Note: Each MTR report has a unique MTR ID to filter and easily access.
+
+![](https://github.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/blob/main/Diagram.png?raw=true)
+
+## Pre-requisites
 
 ## Setup
 The stand-alone script is supported for Ubuntu 22.04. While it might work on other Ubuntu versions, most dependencies installations are optimized for this specific version.
 
-To launch the script, paste the following command on the terminal:
+To launch the script, use the following on the EC2's terminal:
 
 ```
-sudo wget -qO - raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh | bash
+wget -q raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh
+chmod +x CC-Monitor-Script.sh
+./CC-Monitor-Script.sh
 ```
 
 ## Usage

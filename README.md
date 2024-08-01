@@ -60,10 +60,12 @@ Note: Each MTR report has a unique MTR ID to filter and easily access.
 ## Setup
 The stand-alone script is supported for Ubuntu 22.04. While it might work on other Ubuntu versions, most dependencies installations are optimized for this specific version.
 
-To launch the script, paste the following command on the terminal:
+To launch the script, use the following on the EC2's terminal:
 
 ```
-sudo wget -qO - raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh | bash
+curl -O raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh
+chmod +x CC-Monitor-Script.sh
+./CC-Monitor-Script.sh
 ```
 
 ## Usage

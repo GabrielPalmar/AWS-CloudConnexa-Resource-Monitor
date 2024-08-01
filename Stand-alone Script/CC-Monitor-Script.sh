@@ -7,11 +7,15 @@ for pkg in mtr bc jq python3 python3-pip; do
     fi
 done
 
-# Set CloudWatch Agent
-sudo wget -q https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
-sudo dpkg -i -E ./amazon-cloudwatch-agent.deb &> /dev/null
-echo '{"agent":{"run_as_user":"root"},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/home/ubuntu/Connexa-Logs/**","log_group_class":"STANDARD","log_group_name":"CloudConnexa-Monitor-Logs","log_stream_name":"{instance_id}","retention_in_days":-1}]}}}}' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
-sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json &> /dev/null
+if [[ -f "/opt/aws/amazon-cloudwatch-agent/bin/config.json" ]]; then
+    echo -e "\n••••••••••• CloudWatch Agent already installed •••••••••••\n"
+else
+    # Set CloudWatch Agent
+    sudo wget -q https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+    sudo dpkg -i -E ./amazon-cloudwatch-agent.deb &> /dev/null
+    echo '{"agent":{"run_as_user":"root"},"logs":{"logs_collected":{"files":{"collect_list":[{"file_path":"/home/ubuntu/Connexa-Logs/**","log_group_class":"STANDARD","log_group_name":"CloudConnexa-Monitor-Logs","log_stream_name":"{instance_id}","retention_in_days":-1}]}}}}' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
+    sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json &> /dev/null
+fi
 
 script_dir='/home/ubuntu/connexa-script.sh'
 
@@ -57,19 +61,19 @@ echo -e "\n•••••••••••••••••••••••
 }
 
 separator
-prompt_and_read 'Interval (in minutes) where the monitoring script repeats:' interval
+prompt_and_read 'Interval (minutes) where the monitoring script repeats [Recommended 5]:' interval
 separator
-prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain? (Recommended 25):' TestCount
+prompt_and_read 'How many times the connection test would be repeated against the resource IP or Domain? [Recommended 25]:' TestCount
 separator
-prompt_and_read 'Threshold for the Latency value to monitor (Recommended 75):' LatencyThreshold
+prompt_and_read 'Threshold for the Latency value (ms) to monitor [Recommended 75]:' LatencyThreshold
 separator
-prompt_and_read 'Threshold for the Loss value to monitor (Recommended 5):' LossThreshold
+prompt_and_read 'Threshold for the Loss value (%) to monitor [Recommended 5]:' LossThreshold
 separator
-echo 'Resource IPs or Domains to monitor, comma separated (no space in between):'
+echo 'Resource IPs or Domains to monitor, comma separated [no space in between]:'
 
 while true; do
     read ResourceIP
-    if [[ $ResourceIP =~ ^[a-zA-Z0-9,.]*$ ]]; then
+    if [[ $ResourceIP =~ ^[a-zA-Z0-9,.-]+$ ]]; then
         break
     else
         echo 'Please enter a valid domains or IPs, comma separated (no space in between)'
@@ -137,6 +141,18 @@ for ip in "${ips[@]}"; do
         if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
             break
         fi
+        if [[ "$latency_flag" -eq 1 ]]; then
+            latency="$hop_latency"
+        else
+            latency_test=$(ping -q -c "$count" -n4 "$ip")
+            if echo "$latency_test" | grep -q '100% packet loss'; then
+                latency=0
+                hop_loss=100
+                loss_flag=1
+            else
+                latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+            fi
+        fi
     done
     resource_ips+=($ip)
     if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
@@ -149,18 +165,6 @@ json_rips=$(printf '%s\n' "${resource_ips[@]}" | jq -R . | jq -cs .)
 # Get current CloudConnexa Gateway
 path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*')
 gateway_ip=$(sudo openvpn3-admin journal --path $path | grep 'via' | tail -1 | awk -F '[()]' '{print $2}')
-
-if [[ "$latency_flag" -eq 1 ]]; then
-    latency="$hop_latency"
-else
-    latency_test=$(ping -q -c "$count" -n4 "$ip")
-    if echo "$latency_test" | grep -q '100% packet loss'; then
-        latency=999
-        loss_flag=1
-    else
-        latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
-    fi
-fi
 
 if ! [[ "$latency_flag" -eq 1 ]] && ! [[ "$loss_flag" -eq 1 ]]; then
     mtr_id=0
@@ -175,7 +179,9 @@ else
 fi
 
 if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
-    echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
+    if [[ $hop_loss -ne 100 ]]; then
+        echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
+    fi
     mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)
     echo "$mtr_report_gateway" | sed "s/HOST.*/GATEWAY MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-GATEWAY-$mtr_id.txt"
 fi

@@ -103,7 +103,7 @@ Attach the role to the EC2 instance during creation or to an existing EC2 instan
 
 The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**". In case this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-CloudWatch-Template.yaml), which also includes creating the Filter in case of latency or loss flags.
 
-To create the CloudWatch Filter manually, use the following filter pattern:
+To create the CloudWatch Filter manually, use the following [filter pattern using regex](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html):
 
 ```
 '{ ($.LATENCY_FLAG = "1") || ($.LOSS_FLAG = "1") }'

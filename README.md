@@ -74,3 +74,5 @@ chmod +x CC-Monitor-Script.sh
 ## Usage
 
 ## CloudFormation Templates
+
+[![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://console.aws.amazon.com/cloudformation/home#/stacks/new?stackName=CC-Resource-Monitor&templateURL=https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-Monitor-Template.yaml)

@@ -59,7 +59,7 @@ Note: Each MTR report has a unique MTR ID to filter and easily access.
 ![](https://github.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/blob/main/Diagram.png?raw=true)
 
 ## Pre-requisites
-An IAM role with specific permissions must be attached to the EC2 instance so that the logs can be sent to CloudWatch Logs.
+To send the logs to CloudWatch Logs, an IAM role with specific permissions must be attached to the EC2 instance.
 1. Permissions:
 
 ```
@@ -101,7 +101,7 @@ An IAM role with specific permissions must be attached to the EC2 instance so th
 ```
 Attach the role to the EC2 instance during creation or to an existing EC2 instance using the steps shown here: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#working-with-iam-roles
 
-The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**". In case this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-CloudWatch-Template.yaml), which also includes creating the Filter in case of latency or loss flags.
+The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**." If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-CloudWatch-Template.yaml), which also includes creating the Filter in case of latency or loss flags.
 
 To create the CloudWatch Filter manually, use the following [filter pattern using regex](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html):
 
@@ -121,6 +121,25 @@ chmod +x CC-Monitor-Script.sh
 ```
 
 ## Usage
+
+An interactive mode is used when launching the script, requesting the following information:
+1. **Interval (minutes) where the monitoring script repeats**: Dictates the interval in minutes for the cronjob to be repeated.
+2. **How many times would the connection test be repeated against the resource IP or Domain?**: Test count for the MTR should be repeated. A higher value yields better average results but increases completion time.
+3. **Threshold for the Latency value (ms) to monitor**: Threshold value for the latency tests to be compared. For example, if you choose 75, then any report yielding higher latency than 75ms will trigger the flag.
+4. **Threshold for the Loss value (%) to monitor**: Threshold value for the latency tests to be compared. For example, if you choose 5, then any report yielding higher packet loss than 5% will trigger the flag
+5. **Resource IPs or Domains to monitor, comma separated [no space in between]**: Domains or IPs of the CloudConnexa resources you want to monitor, for example, "_privatedomain.com,192.168.1.15,10.10.1.10_'
+
+NOTE: If this script is placed in a fresh EC2, it will ask for a [Host Token](https://openvpn.net/cloud-docs/owner/tutorials/configuration-tutorials/connectors/operating-systems.html#tutorial--install-a-connector-on-linux) to install the CloudConnexa session.
+
+Once the script is installed you can manually edit the values over the script file:
+```
+/home/ubuntu/connexa-script.sh
+```
+
+Also, you can edit the cronjob interval by using the following command:
+```
+crontab -e
+```
 
 ## CloudFormation Templates
 1. Template to launch the Monitor script, including EC2, IAM roles, and CloudWatch configuration:

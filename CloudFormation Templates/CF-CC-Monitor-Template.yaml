@@ -908,7 +908,7 @@ Resources:
               echo "Error: Directory '$directory' does not exist."
           fi
 
-          for ip in "${ips[@]}"; do
+          for ip in "${!ips[@]}"; do
               # MTR reports
               mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
               line_count=$(echo "$mtr_report_resource" | wc -l)
@@ -952,7 +952,7 @@ Resources:
               fi
           done
 
-          json_rips=$(printf '%s\n' "${resource_ips[@]}" | jq -R . | jq -cs .)
+          json_rips=$(printf '%s\n' "${!resource_ips[@]}" | jq -R . | jq -cs .)
 
           # Get current CloudConnexa Gateway
           path=$(sudo openvpn3 sessions-list | grep -B 3 'CloudConnexa' | grep -o '\S*/net/openvpn/\S*')

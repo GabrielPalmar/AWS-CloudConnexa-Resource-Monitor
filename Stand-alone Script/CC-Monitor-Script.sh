@@ -138,9 +138,6 @@ for ip in "${ips[@]}"; do
         if [[ -n "$hop_loss" && $(echo "$hop_loss > $loss_threshold" | bc -l) -eq 1 ]]; then
             loss_flag=1
         fi
-        if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
-            break
-        fi
         if [[ "$latency_flag" -eq 1 ]]; then
             latency="$hop_latency"
         else
@@ -153,6 +150,9 @@ for ip in "${ips[@]}"; do
                 latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
             fi
         fi
+        if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
+            break
+        fi        
     done
     resource_ips+=($ip)
     if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
@@ -179,7 +179,7 @@ else
 fi
 
 if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
-    if [[ $hop_loss -ne 100 ]]; then
+    if [[ $(echo "$hop_loss < 100" | bc -l) -eq 1 ]]; then
         echo "$mtr_report_resource" | sed "s/HOST.*/RESOURCE MTR: $mtr_id (Hop, Avg, Loss%)/" | tail -n +2 > "$directory/MTR-RESOURCE-$mtr_id.txt"
     fi
     mtr_report_gateway=$(mtr -r -n -c $count -o AL $gateway_ip)

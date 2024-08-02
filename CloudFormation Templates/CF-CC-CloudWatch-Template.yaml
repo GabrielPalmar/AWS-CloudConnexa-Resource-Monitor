@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Creates CloudWatch Log Groups and Metrics.
+Resources:
+  CloudConnexaMonitorLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: "CloudConnexa-Monitor-Logs"
+  CloudConnexaMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref CloudConnexaMonitorLogs
+      FilterPattern: '{ ($.LATENCY_FLAG = "1") || ($.LOSS_FLAG = "1") }'
+      MetricTransformations:
+        - MetricValue: "1"
+          MetricNamespace: "CloudConnexa"
+          MetricName: "HighLatencyOrLoss"
+          Unit: "Count"

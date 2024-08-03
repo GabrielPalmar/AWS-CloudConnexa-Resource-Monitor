@@ -83,6 +83,7 @@ To send the logs to CloudWatch Logs, an IAM role with specific permissions must 
     ]
 }
 ```
+Replace "**{Account-ID}**" with your AWS Account ID.
 
 2. Trust Relationships:
 ```

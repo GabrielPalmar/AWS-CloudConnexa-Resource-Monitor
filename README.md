@@ -31,9 +31,9 @@ CloudConnexa:
 - Host Connection
 
 ## Script Logic
-The script analyzes MTR (My Traceroute) reports for your monitored resources. It examines the initial hops over the connection to the specified IP(s) or domain(s). Since the CloudConnexa tunnel is utilized to access the resources, the first and/or second hop in the data center will be CloudConnexa gateways before reaching the final destination. Therefore, the script examines the first three hops of the MTR report to assess latency and packet loss.
+The script analyzes MTR (My Traceroute) reports for your monitored resources. It examines the initial hops over the connection to the specified IP(s) or domain(s). Since the CloudConnexa tunnel is utilized to access the resources, the first and/or second hop will be the CloudConnexa gateways before reaching the final destination. Therefore, the script examines the first three hops of the MTR report to assess latency and packet loss.
 
-The resources are also monitored with PING tests; this value takes precedence over the MTR hops latency and is also evaluated using the script's threshold value.
+The resources are also monitored with PING tests; this value takes precedence over the MTR hops latency and is evaluated against the script's threshold value.
 
 Based on the packet loss or occurrences, logs are created under the folder path ***/home/ubuntu/Connexa-Logs***, creating three types of files:
 
@@ -106,7 +106,7 @@ Replace "**{Account-ID}**" with your AWS Account ID.
 ```
 Attach the role to the EC2 instance during creation or to an existing EC2 instance using the steps shown here: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#working-with-iam-roles
 
-The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**." If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](#cloudformation-templates), including creating the Filter to find latency or loss flags.
+The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**" using the Unified CloudWatch Agent. If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](#cloudformation-templates), including creating the Filter to find latency or loss flags.
 
 To create the CloudWatch Filter manually, use the following [filter pattern with regex](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html):
 
@@ -138,12 +138,12 @@ You can also consider using the [CloudFormation Template](#cloudformation-templa
 
 NOTE: If this script is placed in a fresh EC2, it will ask for a [Host Token](https://openvpn.net/cloud-docs/owner/tutorials/configuration-tutorials/connectors/operating-systems.html#tutorial--install-a-connector-on-linux) to install the CloudConnexa session.
 
-- Once the script is installed you can manually edit the values over the script file:
+- Once the script is installed, you can manually edit the values over the script file:
 ```
 /home/ubuntu/connexa-script.sh
 ```
 
-- Also, you can edit the cronjob interval by using the following command:
+- Also, you can edit the cronjob interval or remove the job by using the following command:
 ```
 crontab -e
 ```
@@ -160,6 +160,6 @@ crontab -e
 [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://console.aws.amazon.com/cloudformation/home#/stacks/new?stackName=CC-CloudWatch&templateURL=https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-CloudWatch-Template.yaml)
 
 ## Caveats
-The monitoring script depends on the MTR application. While creating it, I discovered a bug in the report mode, which is used to review the hops. I have submitted a bug request, you can follow this by using this link: https://bugs.launchpad.net/ubuntu/+source/mtr/+bug/2070685. 
+The monitoring script depends on the MTR application. While creating it, I discovered a bug in the report mode used to review the hops. I have submitted a bug request. You can follow this request by using this link: https://bugs.launchpad.net/ubuntu/+source/mtr/+bug/2070685. 
 
-Based on this, a PING test is used to check the latency and packet loss to the destination as failover to ensure that the script works properly.
+Based on this, a PING test checks the latency and packet loss to the destination as failover to ensure the script works properly.

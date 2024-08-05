@@ -8,6 +8,7 @@
 * [Setup](#setup)
 * [Usage](#usage)
 * [CloudFormation Templates](#cloudformation-templates)
+* [Caveats](#caveats)
 
 ## Introduction
 Monitor script that continually checks the latency and packet loss of resources in CloudConnexa and logs reports if any anomalies occur along the path.
@@ -102,7 +103,7 @@ Replace "**{Account-ID}**" with your AWS Account ID.
 ```
 Attach the role to the EC2 instance during creation or to an existing EC2 instance using the steps shown here: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#working-with-iam-roles
 
-The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**." If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](https://github.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor?tab=readme-ov-file#cloudformation-templates), which also includes creating the Filter in case of latency or loss flags.
+The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**." If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](#cloudformation-templates), including creating the Filter in case of latency or loss flags.
 
 To create the CloudWatch Filter manually, use the following [filter pattern with regex](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html):
 
@@ -121,7 +122,7 @@ chmod +x CC-Monitor-Script.sh
 ./CC-Monitor-Script.sh
 ```
 
-You can also consider using the [CloudFormation Template](https://github.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor?tab=readme-ov-file#cloudformation-templates) to launch all the settings, including a new EC2.
+You can also consider using the [CloudFormation Template](#cloudformation-templates) to launch all the settings, including a new EC2.
 
 ## Usage
 
@@ -147,10 +148,13 @@ crontab -e
 - Remember to set up the CloudWatch alarm and configure the required SNS topic to receive alerts when a flag is triggered: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Alarm-On-Logs.html.
 
 ## CloudFormation Templates
-1. Template to launch the Monitor script, including EC2, IAM roles, and CloudWatch configuration:
+1. Template to launch the Monitor script, including EC2, IAM roles, and CloudWatch [configuration](#dios):
    
 [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://console.aws.amazon.com/cloudformation/home#/stacks/new?stackName=CC-Resource-Monitor&templateURL=https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-Monitor-Template.yaml)
 
 2. Template to create the CloudWatch Log Group and Filter:
    
 [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://console.aws.amazon.com/cloudformation/home#/stacks/new?stackName=CC-CloudWatch&templateURL=https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-CloudWatch-Template.yaml)
+
+## Caveats
+

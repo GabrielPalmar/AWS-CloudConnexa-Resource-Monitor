@@ -24,6 +24,7 @@ AWS:
 - CloudWatch
 - EC2
 - IAM Roles
+- Unified CloudWatch Agent
 
 CloudConnexa:
 - OpenVPN3

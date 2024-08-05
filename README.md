@@ -103,7 +103,7 @@ Replace "**{Account-ID}**" with your AWS Account ID.
 ```
 Attach the role to the EC2 instance during creation or to an existing EC2 instance using the steps shown here: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#working-with-iam-roles
 
-The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**." If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](#cloudformation-templates), including creating the Filter in case of latency or loss flags.
+The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monitor-Logs**." If this Log Group is not created, it will be created automatically once the logs are pushed. You can also create the Log Group in advance using the [CloudFormation Template](#cloudformation-templates), including creating the Filter to find latency or loss flags.
 
 To create the CloudWatch Filter manually, use the following [filter pattern with regex](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html):
 

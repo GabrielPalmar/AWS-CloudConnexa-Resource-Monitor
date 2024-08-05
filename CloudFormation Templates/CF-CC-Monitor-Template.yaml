@@ -940,11 +940,14 @@ Resources:
                           loss_flag=1
                       else
                           latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
+                          if [[ -n "$latency" && $(echo "$latency > $latency_threshold" | bc -l) -eq 1 ]]; then
+                          latency_flag=1
+                          fi
                       fi
                   fi
                   if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then
                       break
-                  fi        
+                  fi
               done
               resource_ips+=($ip)
               if [[ $latency_flag -eq 1 ]] || [[ $loss_flag -eq 1 ]]; then

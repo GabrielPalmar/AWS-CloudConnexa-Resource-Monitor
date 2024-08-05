@@ -157,4 +157,6 @@ crontab -e
 [![Launch Stack](https://cdn.rawgit.com/buildkite/cloudformation-launch-stack-button-svg/master/launch-stack.svg)](https://console.aws.amazon.com/cloudformation/home#/stacks/new?stackName=CC-CloudWatch&templateURL=https://aws-cloudconnexa-resource-monitor.s3.us-east-2.amazonaws.com/CF-CC-CloudWatch-Template.yaml)
 
 ## Caveats
+The monitoring script depends on the MTR application. While creating it, I discovered a bug in the report mode, which is used to review the hops. I have submitted a bug request, you can follow this by using this link: https://bugs.launchpad.net/ubuntu/+source/mtr/+bug/2070685. 
 
+Based on this, a PING test is used to check the latency and packet loss to the destination as failover to ensure that the script works properly.

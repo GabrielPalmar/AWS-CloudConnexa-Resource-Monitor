@@ -32,6 +32,8 @@ CloudConnexa:
 ## Script Logic
 The script analyzes MTR (My Traceroute) reports for your monitored resources. It examines the initial hops over the connection to the specified IP(s) or domain(s). Since the CloudConnexa tunnel is utilized to access the resources, the first and/or second hop in the data center will be CloudConnexa gateways before reaching the final destination. Therefore, the script examines the first three hops of the MTR report to assess latency and packet loss.
 
+The resources are also monitored with PING tests; this value takes precedence over the MTR hops latency and is also evaluated using the script's threshold value.
+
 Based on the packet loss or occurrences, logs are created under the folder path ***/home/ubuntu/Connexa-Logs***, creating three types of files:
 
 1. **LATENCY-LOSS-CONNEXA-REPORT.json**: Single JSON file constantly updated, showing all reports made with the script, indicating the following values:

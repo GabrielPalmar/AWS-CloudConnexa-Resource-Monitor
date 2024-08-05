@@ -119,7 +119,7 @@ To launch the script, use the following on the EC2's terminal:
 ```
 wget -q raw.githubusercontent.com/GabrielPalmar/AWS-CloudConnexa-Resource-Monitor/main/Stand-alone%20Script/CC-Monitor-Script.sh
 chmod +x CC-Monitor-Script.sh
-./CC-Monitor-Script.sh
+sudo ./CC-Monitor-Script.sh
 ```
 
 You can also consider using the [CloudFormation Template](#cloudformation-templates) to launch all the settings, including a new EC2.

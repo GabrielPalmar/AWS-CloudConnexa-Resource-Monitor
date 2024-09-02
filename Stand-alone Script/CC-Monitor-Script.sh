@@ -148,7 +148,7 @@ for ip in "${ips[@]}"; do
         else
             latency_test=$(ping -q -c "$count" -n4 "$ip")
             if echo "$latency_test" | grep -q '100% packet loss'; then
-                curl_test=$(curl --connect-timeout 5 -o /dev/null -s -w "%{time_total}" "$ip")
+                curl_test=$(curl --connect-timeout 5 -o /dev/null -s -w "%{time_total}" "$domain")
                 if [[ $? -ne 0 ]]; then
                     latency=0
                     hop_loss=100

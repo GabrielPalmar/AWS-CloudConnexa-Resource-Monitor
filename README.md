@@ -111,7 +111,7 @@ The EC2 will push the logs to the CloudWatch Group called "**CloudConnexa-Monito
 To create the CloudWatch Filter manually, use the following [filter pattern with regex](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html):
 
 ```
-'{ ($.LATENCY_FLAG = "1") || ($.LOSS_FLAG = "1") }'
+{ ($.LATENCY_FLAG = "1") || ($.LOSS_FLAG = "1") }
 ```
 
 ## Setup

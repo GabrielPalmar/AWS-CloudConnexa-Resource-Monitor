@@ -73,7 +73,7 @@ echo 'Resource IPs or Domains to monitor, comma separated [no space in between]:
 
 while true; do
     read ResourceIP
-    if [[ $ResourceIP =~ ^[a-zA-Z0-9,.-]+$ ]]; then
+    if [[ $ResourceIP =~ ^[a-zA-Z0-9,.-:/]+$ ]]; then
         break
     else
         echo 'Please enter a valid domains or IPs, comma separated (no space in between)'

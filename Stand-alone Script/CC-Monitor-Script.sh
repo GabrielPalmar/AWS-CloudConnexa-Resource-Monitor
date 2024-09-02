@@ -117,7 +117,12 @@ if [[ -n "$directory" && ! -d "$directory" ]]; then
 fi
 
 for ip in "${ips[@]}"; do
-    # MTR reports
+    if echo "$ip" | grep -q 'http'; then
+        domain="$ip"
+        ip=$(echo "$ip" | awk -F '/' '{print $3}')
+    else
+        domain="$ip"
+    fi
     mtr_report_resource=$(mtr -r -n -c $count -o AL $ip)
     line_count=$(echo "$mtr_report_resource" | wc -l)
 
@@ -143,9 +148,22 @@ for ip in "${ips[@]}"; do
         else
             latency_test=$(ping -q -c "$count" -n4 "$ip")
             if echo "$latency_test" | grep -q '100% packet loss'; then
-                latency=0
-                hop_loss=100
-                loss_flag=1
+                curl_test=$(curl --connect-timeout 5 -o /dev/null -s -w "%{time_total}" "$ip")
+                if [[ $? -ne 0 ]]; then
+                    latency=0
+                    hop_loss=100
+                    loss_flag=1
+                else
+                    curl_out=$(echo "scale=2; ($curl_test * 1000) / 1" | bc -l)
+                    if echo "$curl_out > 500" | bc -l | grep -q 1; then
+                        latency=0
+                        hop_loss=100
+                        loss_flag=1
+                    else
+                        latency="$curl_out"
+                        hop_loss=0
+                    fi
+                fi
             else
                 latency=$(echo "$latency_test" | grep 'rtt' | awk -F '/' '{print $5}')
                 if [[ -n "$latency" && $(echo "$latency > $latency_threshold" | bc -l) -eq 1 ]]; then
@@ -192,7 +210,7 @@ fi
 rm -f "$lockfile"
 EOF
 
-sed -i "s/TestCountReplace/$TestCount/; s/LatencyThresholdReplace/$LatencyThreshold/; s/LossThresholdReplace/$LossThreshold/; s/ResourceIPReplace/$ResourceIP/" $script_dir
+sed -i "s/TestCountReplace/$TestCount/; s/LatencyThresholdReplace/$LatencyThreshold/; s/LossThresholdReplace/$LossThreshold/; s@ResourceIPReplace@$ResourceIP@" $script_dir
 
 chmod +x /home/ubuntu/connexa-script.sh
 (crontab -l 2>/dev/null; echo "*/$interval * * * * $script_dir") | crontab -

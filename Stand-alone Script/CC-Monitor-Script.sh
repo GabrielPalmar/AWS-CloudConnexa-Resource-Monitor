@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check for dependencies
-for pkg in mtr bc jq python3 python3-pip; do
+for pkg in mtr bc jq curl python3 python3-pip; do
     if ! command -v $pkg &> /dev/null; then
         sudo apt install $pkg -y &> /dev/null
     fi

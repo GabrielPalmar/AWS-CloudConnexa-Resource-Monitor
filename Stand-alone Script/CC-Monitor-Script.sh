@@ -162,6 +162,9 @@ for ip in "${ips[@]}"; do
                     else
                         latency="$curl_out"
                         hop_loss=0
+                        if [[ -n "$latency" && $(echo "$latency > $latency_threshold" | bc -l) -eq 1 ]]; then
+                            latency_flag=1
+                        fi
                     fi
                 fi
             else
